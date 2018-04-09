@@ -102,6 +102,10 @@ def get_fast_rcnn_blob_names(is_training=True):
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['mask_rois_fpn' + str(lvl)]
                 blob_names += ['mask_rois_idx_restore_int32']
+            if cfg.MODEL.BOUNDARY_ON:
+                for lvl in range(k_min, k_max + 1):
+                    blob_names += ['boundary_rois_fpn' + str(lvl)]
+                blob_names += ['boundary_rois_idx_restore_int32']
             if cfg.MODEL.KEYPOINTS_ON:
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['keypoint_rois_fpn' + str(lvl)]
@@ -211,6 +215,12 @@ def _sample_rois(roidb, im_scale, batch_idx):
             blob_dict, sampled_boxes, roidb, im_scale, batch_idx
         )
 
+    # Optionally add Boundary blobs
+    if cfg.MODEL.BOUNDARY_ON:
+        roi_data.boundary.add_boundary_blobs(
+            blob_dict, sampled_boxes, roidb, im_scale, batch_idx
+        )
+
     # Optionally add Keypoint R-CNN blobs
     if cfg.MODEL.KEYPOINTS_ON:
         roi_data.keypoint_rcnn.add_keypoint_rcnn_blobs(
@@ -290,5 +300,7 @@ def _add_multilevel_rois(blobs):
     _distribute_rois_over_fpn_levels('rois')
     if cfg.MODEL.MASK_ON:
         _distribute_rois_over_fpn_levels('mask_rois')
+    if cfg.MODEL.BOUNDARY_ON:
+        _distribute_rois_over_fpn_levels('boundary_rois')
     if cfg.MODEL.KEYPOINTS_ON:
         _distribute_rois_over_fpn_levels('keypoint_rois')
