@@ -68,6 +68,10 @@ def get_fast_rcnn_blob_names(is_training=True):
         # 'mask_rois'. Shape is (#fg, M * M) where M is the ground truth
         # mask size.
         blob_names += ['masks_int32']
+    if is_training and cfg.MODEL.BOUNDARY_ON:
+        blob_names += ['boundary_rois']
+        blob_names += ['roi_has_boundary_int32']
+        blob_names += ['boundary_int32']
     if is_training and cfg.MODEL.KEYPOINTS_ON:
         # 'keypoint_rois': RoIs sampled for training the keypoint prediction
         # branch. Shape is (#instances, 5) in format (batch_idx, x1, y1, x2,
