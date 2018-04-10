@@ -4,7 +4,7 @@ MODEL:
   NUM_CLASSES: 81
   FASTER_RCNN: True
   MASK_ON: True
-  BOUNDARY_ON: True
+  BOUNDARY_ON: False
 NUM_GPUS: 4
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -30,6 +30,14 @@ MRCNN:
   ROI_XFORM_SAMPLING_RATIO: 2  # default 0
   DILATION: 1  # default 2
   CONV_INIT: MSRAFill  # default GaussianFill
+BOUNDARY:
+  ROI_BOUNDARY_HEAD: boundary_heads.boundary_fcn_head_v1up4convs
+  RESOLUTION: 28  # (output mask resolution) default 14
+  ROI_XFORM_METHOD: RoIAlign
+  ROI_XFORM_RESOLUTION: 14  # default 7
+  ROI_XFORM_SAMPLING_RATIO: 2  # default 0
+  DILATION: 1  # default 2
+  CONV_INIT: MSRAFill  # default GaussianFill
 TRAIN:
   WEIGHTS: https://s3-us-west-2.amazonaws.com/detectron/ImageNetPretrained/MSRA/R-50.pkl
   DATASETS: ('coco_2014_minitrain',)
@@ -45,4 +53,4 @@ TEST:
   RPN_PRE_NMS_TOP_N: 1000  # Per FPN level
   RPN_POST_NMS_TOP_N: 1000
 OUTPUT_DIR: ../detectron-output
-CONFIG: e2e_mask_rcnn_boundary_R-50-FPN_4GPU_1x_minitrain
+CONFIG: e2e_mask_rcnn_boundary_v1_R-50-FPN_4GPU_1x_minitrain

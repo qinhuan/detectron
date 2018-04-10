@@ -48,6 +48,7 @@ from roi_data.loader import RoIDataLoader
 import modeling.fast_rcnn_heads as fast_rcnn_heads
 import modeling.keypoint_rcnn_heads as keypoint_rcnn_heads
 import modeling.mask_rcnn_heads as mask_rcnn_heads
+import modeling.boundary_heads as boundary_heads
 import modeling.name_compat
 import modeling.optimizer as optim
 import modeling.retinanet_heads as retinanet_heads
@@ -79,12 +80,14 @@ def generalized_rcnn(model):
       - Faster R-CNN (end-to-end joint training)
       - Mask R-CNN (stagewise training from NIPS paper)
       - Mask R-CNN (end-to-end joint training)
+      - boundary
     """
     return build_generic_detection_model(
         model,
         get_func(cfg.MODEL.CONV_BODY),
         add_roi_box_head_func=get_func(cfg.FAST_RCNN.ROI_BOX_HEAD),
         add_roi_mask_head_func=get_func(cfg.MRCNN.ROI_MASK_HEAD),
+        add_roi_boundary_head_func=get_func(cfg.BOUNDARY.ROI_BOUNDARY_HEAD),
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
         freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY
     )
@@ -157,6 +160,7 @@ def build_generic_detection_model(
     add_conv_body_func,
     add_roi_box_head_func=None,
     add_roi_mask_head_func=None,
+    add_roi_boundary_head_func=None,
     add_roi_keypoint_head_func=None,
     freeze_conv_body=False
 ):
@@ -180,6 +184,7 @@ def build_generic_detection_model(
             'rpn': None,
             'box': None,
             'mask': None,
+            'boundary': None,
             'keypoints': None,
         }
 
@@ -203,11 +208,19 @@ def build_generic_detection_model(
                 spatial_scale_conv
             )
 
+        blob_boundary_attention = blob_conv
+        if cfg.MODEL.BOUNDARY_ON:
+            # Add the boundary head
+            head_loss_gradients['boundary'], blob_boundary_attention = _add_roi_boundary_head(
+                model, add_roi_boundary_head_func, blob_conv, dim_conv,
+                spatial_scale_conv
+            )
+
         if cfg.MODEL.MASK_ON:
             # Add the mask head
             head_loss_gradients['mask'] = _add_roi_mask_head(
                 model, add_roi_mask_head_func, blob_conv, dim_conv,
-                spatial_scale_conv
+                spatial_scale_conv, blob_boundary_attention
             )
 
         if cfg.MODEL.KEYPOINTS_ON:
@@ -262,8 +275,8 @@ def _add_fast_rcnn_head(
 
 
 def _add_roi_mask_head(
-    model, add_roi_mask_head_func, blob_in, dim_in, spatial_scale_in
-):
+    model, add_roi_mask_head_func, blob_in, dim_in, spatial_scale_in,
+    blob_boundary_attention):
     """Add a mask prediction head to the model."""
     # Capture model graph before adding the mask head
     bbox_net = copy.deepcopy(model.net.Proto())
@@ -271,9 +284,24 @@ def _add_roi_mask_head(
     blob_mask_head, dim_mask_head = add_roi_mask_head_func(
         model, blob_in, dim_in, spatial_scale_in
     )
+
+    # attention
+    if cfg.MODEL.BOUNDARY_ON:
+        # s = model.net.Sum([blob_mask_head, blob_boundary_attention], 'm_b_sum')
+        bo = 'm_b_concat'
+        concat_F, concat_dims = model.net.Concat(
+            [blob_mask_head, blob_boundary_attention],
+            [bo, "_" + bo + "_concat_dims"]
+        )
+        concat_dims = dim_mask_head * 2
+    else:
+        concat_F = blob_mask_head
+        concat_dims = dim_mask_head
+
+
     # Add the mask output
     blob_mask = mask_rcnn_heads.add_mask_rcnn_outputs(
-        model, blob_mask_head, dim_mask_head
+        model, concat_F, concat_dims
     )
 
     if not model.train:  # == inference
@@ -290,6 +318,35 @@ def _add_roi_mask_head(
         loss_gradients = mask_rcnn_heads.add_mask_rcnn_losses(model, blob_mask)
     return loss_gradients
 
+
+def _add_roi_boundary_head(
+    model, add_roi_boundary_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a boundary prediction head to the model."""
+    # Capture model graph before adding the mask head
+    bbox_net = copy.deepcopy(model.net.Proto())
+    # Add the mask head
+    blob_boundary_head, dim_boundary_head = add_roi_boundary_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    # Add the mask output
+    blob_boundary = boundary_heads.add_boundary_rcnn_outputs(
+        model, blob_boundary_head, dim_boundary_head
+    )
+
+    if not model.train:  # == inference
+        # Inference uses a cascade of box predictions, then mask predictions.
+        # This requires separate nets for box and mask prediction.
+        # So we extract the mask prediction net, store it as its own network,
+        # then restore model.net to be the bbox-only network
+        model.boundary_net, blob_boundary = c2_utils.SuffixNet(
+            'boundary_net', model.net, len(bbox_net.op), blob_boundary
+        )
+        model.net._net = bbox_net
+        loss_gradients = None
+    else:
+        loss_gradients = boundary_heads.add_boundary_rcnn_losses(model, blob_boundary)
+    return loss_gradients, blob_boundary_head
 
 def _add_roi_keypoint_head(
     model, add_roi_keypoint_head_func, blob_in, dim_in, spatial_scale_in

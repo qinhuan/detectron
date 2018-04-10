@@ -764,6 +764,56 @@ __C.MRCNN.THRESH_BINARIZE = 0.5
 
 
 # ---------------------------------------------------------------------------- #
+# Boundary  options 
+# ---------------------------------------------------------------------------- #
+__C.BOUNDARY = AttrDict()
+
+# The type of RoI head to use for instance mask prediction
+# The string must match a function this is imported in modeling.model_builder
+# (e.g., 'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up4convs')
+__C.BOUNDARY.ROI_BOUNDARY_HEAD = b''
+
+# Resolution of mask predictions
+__C.BOUNDARY.RESOLUTION = 14
+
+# RoI transformation function and associated options
+__C.BOUNDARY.ROI_XFORM_METHOD = b'RoIAlign'
+
+# RoI transformation function (e.g., RoIPool or RoIAlign)
+__C.BOUNDARY.ROI_XFORM_RESOLUTION = 7
+
+# Number of grid sampling points in RoIAlign (usually use 2)
+# Only applies to RoIAlign
+__C.BOUNDARY.ROI_XFORM_SAMPLING_RATIO = 0
+
+# Number of channels in the mask head
+__C.BOUNDARY.DIM_REDUCED = 256
+
+# Use dilated convolution in the mask head
+__C.BOUNDARY.DILATION = 2
+
+# Upsample the predicted masks by this factor
+__C.BOUNDARY.UPSAMPLE_RATIO = 1
+
+# Use a fully-connected layer to predict the final masks instead of a conv layer
+__C.BOUNDARY.USE_FC_OUTPUT = False
+
+# Weight initialization method for the mask head and mask output layers
+__C.BOUNDARY.CONV_INIT = b'GaussianFill'
+
+# Use class specific mask predictions if True (otherwise use class agnostic mask
+# predictions)
+__C.BOUNDARY.CLS_SPECIFIC_MASK = True
+
+# Multi-task loss weight for masks
+__C.BOUNDARY.WEIGHT_LOSS_MASK = 1.0
+
+# Binarization threshold for converting soft masks to hard masks
+__C.BOUNDARY.THRESH_BINARIZE = 0.5
+
+
+
+# ---------------------------------------------------------------------------- #
 # Keyoint Mask R-CNN options ("KRCNN" = Mask R-CNN with Keypoint support)
 # ---------------------------------------------------------------------------- #
 __C.KRCNN = AttrDict()
