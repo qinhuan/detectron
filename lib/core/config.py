@@ -811,6 +811,7 @@ __C.BOUNDARY.WEIGHT_LOSS_MASK = 1.0
 # Binarization threshold for converting soft masks to hard masks
 __C.BOUNDARY.THRESH_BINARIZE = 0.5
 
+__C.BOUNDARY.CONCAT_MASK = False
 
 
 # ---------------------------------------------------------------------------- #

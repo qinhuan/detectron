@@ -286,7 +286,7 @@ def _add_roi_mask_head(
     )
 
     # attention
-    if cfg.MODEL.BOUNDARY_ON:
+    if cfg.MODEL.BOUNDARY_ON and cfg.BOUNDARY.CONCAT_MASK:
         # s = model.net.Sum([blob_mask_head, blob_boundary_attention], 'm_b_sum')
         bo = 'm_b_concat'
         concat_F, concat_dims = model.net.Concat(
